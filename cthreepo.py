@@ -11,7 +11,7 @@ signal(SIGPIPE, SIG_DFL)
 
 def processargs(args):
     Args = collections.namedtuple('Args', ['fi', 'fo', 'mapfile', 'id_from',
-            'id_to'])
+            'id_to', 'ku', 'p'])
 
     mapfile_dict = {
                 'h38' : 'mapfiles/h38.map',
@@ -54,17 +54,26 @@ def processargs(args):
         "ERROR: id_from and id_to can only be one of the following:"
         "`ens`, `gb`, `rs` or `uc`")
         sys.exit()
-    elif args.id_from == args.id_to:
-        print("ERROR: id_from and id_to cannot be the same")
-        sys.exit()
+    # elif args.id_from == args.id_to:
+    #     print("ERROR: id_from and id_to cannot be the same")
+    #     sys.exit()
     else:
         id_from = id_dict[args.id_from]
         id_to = id_dict[args.id_to]
 
-    ## return args
-    return Args(fi, fo, mapfile, id_from, id_to)
+    if args.keep_unmapped:
+        ku = 'T'
+    else:
+        ku = 'F'
 
-def chrnamedict(mapfile, id_from, id_to):
+    if args.primary:
+        p = 'T'
+    else:
+        p = 'F'
+    ## return args
+    return Args(fi, fo, mapfile, id_from, id_to, ku, p)
+
+def chrnamedict(mapfile, id_from, id_to, p):
     """
     create a mapping dict that will be used swap seq-ids in the input file
     ## params
@@ -77,12 +86,22 @@ def chrnamedict(mapfile, id_from, id_to):
     chrmap = {}
     with open(mapfile, 'r')  as f:
         tbl = csv.reader(f, delimiter = '\t')
-        for line in tbl:
-            if not line[0].startswith('#'):
-                chrmap[line[id_from]] = line[id_to]
+        if p == 'F':
+            for line in tbl:
+                if not line[0].startswith('#'):
+                    chrmap[line[id_from]] = line[id_to]
+        elif p == 'T':
+            for line in tbl:
+                if not line[0].startswith('#') and line[0] == '1':
+                    au = line[7]
+                    chrmap[line[id_from]] = line[id_to]
+                    break
+            for line in tbl:
+                if not line[0].startswith('#') and line[7] == au:
+                    chrmap[line[id_from]] = line[id_to]
     return chrmap
 
-def convgff3(fi, fo, chrmap):
+def convgff3(fi, fo, chrmap, ku):
     """
     converts seq-ids in the `infile` to the desired format and writes output
     to `outfile`
@@ -106,16 +125,20 @@ def convgff3(fi, fo, chrmap):
                 chrom = chrmap[line[0]]
                 newline = [chrom] + line[1:]
                 x = tblout.writerow(newline)
+            elif ku == 'T':
+                um_lines = um_lines + 1
+                um_acc.add(line[0])
+                x = tblout.writerow(line)
             else:
                 um_lines = um_lines + 1
                 um_acc.add(line[0])
-                # x = tblout.writerow(line)
         else:
             x = tblout.writerow(line)
-    if len(um_acc) > 0:
+    if len(um_acc) > 0 and ku == 'F':
         print(
         "WARNING: {} accessions were not present in the mapfile; they are "
-        "dropped in the output file. {} of {} lines were dropped."
+        "dropped in the output file. {} of {} lines were dropped. "
+        "Use `-ku` option to keep them instead."
         .format(len(um_acc), um_lines, all_lines)
         )
     fi.close()
@@ -131,8 +154,12 @@ parser.add_argument('-if', '--id_from', default = 'uc', help = "seq-id format \
                     in the input gff3 file; default is `uc`")
 parser.add_argument('-it', '--id_to', default = 'rs', help = "seq-id format \
                     in the output gff3 file; default is `rs`")
+parser.add_argument('-ku', '--keep_unmapped', action='store_true',
+                    help = "keep lines that don't have seq-id matches")
+parser.add_argument('-p', '--primary', action='store_true',
+                    help = "restrict to primary assembly only")
 args = parser.parse_args()
 
 A = processargs(args)
-chrmap = chrnamedict(A.mapfile, A.id_from, A.id_to)
-convgff3(A.fi, A.fo, chrmap)
+chrmap = chrnamedict(A.mapfile, A.id_from, A.id_to, A.p)
+convgff3(A.fi, A.fo, chrmap, A.ku)
