@@ -1,5 +1,6 @@
 #!/home/kodalivk/envs/vkenv3/bin/python
 
+import os
 import csv
 import sys
 import argparse
@@ -15,10 +16,10 @@ def processargs(args):
             'id_to', 'ku', 'p'])
 
     mapfile_dict = {
-                'h38' : 'mapfiles/h38.map',
-                'h37' : 'mapfiles/h37.map',
-                'm38' : 'mapfiles/m38.map',
-                'm37' : 'mapfiles/m37.map'
+                'h38' : '/mapfiles/h38.map',
+                'h37' : '/mapfiles/h37.map',
+                'm38' : '/mapfiles/m38.map',
+                'm37' : '/mapfiles/m37.map'
                 }
     id_dict = {
                 'ens': 0,
@@ -45,7 +46,7 @@ def processargs(args):
         )
         sys.exit()
     elif args.mapfile in mapfile_dict:
-        mapfile = mapfile_dict[args.mapfile]
+        mapfile = os.path.abspath(os.path.dirname(sys.argv[0])) + mapfile_dict[args.mapfile]
     else:
         mapfile = args.mapfile
 
