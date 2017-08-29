@@ -4,6 +4,7 @@ import csv
 import sys
 import argparse
 import collections
+# import multiprocessing as mp
 
 # See http://stackoverflow.com/questions/14207708/ioerror-errno-32-broken-pipe-python
 from signal import signal, SIGPIPE, SIG_DFL
@@ -54,9 +55,6 @@ def processargs(args):
         "ERROR: id_from and id_to can only be one of the following:"
         "`ens`, `gb`, `rs` or `uc`")
         sys.exit()
-    # elif args.id_from == args.id_to:
-    #     print("ERROR: id_from and id_to cannot be the same")
-    #     sys.exit()
     else:
         id_from = id_dict[args.id_from]
         id_to = id_dict[args.id_to]
@@ -112,9 +110,8 @@ def convgff3(fi, fo, chrmap, ku):
     ## returns
     unmapped : list of seq-ids that were unmapped
     """
-    # with open(infile, 'r') as fi, open(outfile, 'w') as fo:
     tblin = csv.reader(fi, delimiter = '\t')
-    tblout = csv.writer(fo, delimiter = '\t')
+    tblout = csv.writer(fo, delimiter = '\t', quotechar = "'" , escapechar = '\\')
     all_lines = 0
     um_lines = 0
     um_acc = set()
@@ -144,22 +141,27 @@ def convgff3(fi, fo, chrmap, ku):
     fi.close()
     fo.close()
 
-parser = argparse.ArgumentParser(description="""This script parses gff3
-file and converts the seq-id name from one kind to the other""")
-parser.add_argument('-i', '--infile', help="input gff3 file")
-parser.add_argument('-o', '--outfile', help="output gff3 file")
-parser.add_argument('-m', '--mapfile',
-                    help = "NCBI style assembly_report file for mapping")
-parser.add_argument('-if', '--id_from', default = 'uc', help = "seq-id format \
-                    in the input gff3 file; default is `uc`")
-parser.add_argument('-it', '--id_to', default = 'rs', help = "seq-id format \
-                    in the output gff3 file; default is `rs`")
-parser.add_argument('-ku', '--keep_unmapped', action='store_true',
-                    help = "keep lines that don't have seq-id matches")
-parser.add_argument('-p', '--primary', action='store_true',
-                    help = "restrict to primary assembly only")
-args = parser.parse_args()
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description ="""This script parses gtf/gff3
+                file and converts the seq-id name from one kind to the other""")
+    parser.add_argument('-i', '--infile', help="input gff3 file")
+    parser.add_argument('-o', '--outfile', help="output gff3 file")
+    parser.add_argument('-m', '--mapfile',
+                        help = "NCBI style assembly_report file for mapping")
+    parser.add_argument('-if', '--id_from', default = 'uc', help = "seq-id \
+                        format in the input gff3 file; default is `uc`")
+    parser.add_argument('-it', '--id_to', default = 'rs', help = "seq-id \
+                        format in the output gff3 file; default is `rs`")
+    parser.add_argument('-ku', '--keep_unmapped', action='store_true',
+                        help = "keep lines that don't have seq-id matches")
+    parser.add_argument('-p', '--primary', action='store_true',
+                        help = "restrict to primary assembly only")
 
-A = processargs(args)
-chrmap = chrnamedict(A.mapfile, A.id_from, A.id_to, A.p)
-convgff3(A.fi, A.fo, chrmap, A.ku)
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(0)
+
+    args = parser.parse_args()
+    A = processargs(args)
+    chrmap = chrnamedict(A.mapfile, A.id_from, A.id_to, A.p)
+    convgff3(A.fi, A.fo, chrmap, A.ku)
