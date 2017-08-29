@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/home/kodalivk/envs/vkenv3/bin/python
 
 import csv
 import sys
