@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import re
 import csv
 import sys
 import argparse
@@ -106,7 +107,7 @@ def chrnamedict(mapfile, id_from, id_to, p):
                     chrmap[line[id_from]] = line[id_to]
     return chrmap
 
-def convgff3(fi, fo, chrmap, ku):
+def convgxf(fi, fo, chrmap, ku):
     """
     converts seq-ids in the `infile` to the desired format and writes output
     to `outfile`
@@ -148,6 +149,63 @@ def convgff3(fi, fo, chrmap, ku):
     fi.close()
     fo.close()
 
+def convbed(fi, fo, chrmap, ku):
+    """
+    converts seq-ids in the `infile` to the desired format and writes output
+    to `outfile`
+    ## params
+    infile  : input file, bed, bigbed or bedgraph formats
+    outfile : output file with swapped seq-ids; same format as input
+    chrmap  : dict object with id_from:id_to
+    ## returns
+    unmapped : list of seq-ids that were unmapped
+    """
+    tblin = csv.reader(fi, delimiter = '\t')
+    tblout = csv.writer(fo, delimiter = '\t', quotechar = "'" , escapechar = '\\')
+    all_lines = 0
+    um_lines = 0
+    um_acc = set()
+    for line in tblin:
+        if not (
+            line[0].startswith('#') or
+            line[0].startswith('track') or
+            line[0].startswith('browser')
+            ):
+            all_lines = all_lines + 1
+            if len(line) == 1:
+                line = re.sub(' +',' ', line[0])
+                line = [item for item in line.split()]
+            if line[0] in chrmap:
+                chrom = chrmap[line[0]]
+                newline = [chrom] + line[1:]
+                x = tblout.writerow(newline)
+            elif ku == 'T':
+                um_lines = um_lines + 1
+                um_acc.add(line[0])
+                x = tblout.writerow(line)
+            else:
+                um_lines = um_lines + 1
+                um_acc.add(line[0])
+        elif 'browser position' in line[0]:
+            line = re.sub(' +',' ', line[0])
+            line = [item for item in line.split()]
+            f_seqid = line[2].split(':')[0]
+            t_seqid = chrmap[line[2].split(':')[0]]
+            line[2] = re.sub(f_seqid, t_seqid, line[2])
+            line = [' '.join(line)]
+            x = tblout.writerow(line)
+        else:
+            x = tblout.writerow(line)
+    if len(um_acc) > 0 and ku == 'F':
+        print(
+        "WARNING: {} accessions were not present in the mapfile; they are "
+        "dropped in the output file. {} of {} lines were dropped. "
+        "Use `-ku` option to keep them instead."
+        .format(len(um_acc), um_lines, all_lines)
+        )
+    fi.close()
+    fo.close()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description ="""This script parses gtf/gff3
                 file and converts the seq-id name from one kind to the other""")
@@ -165,6 +223,9 @@ if __name__ == '__main__':
                         help = "keep lines that don't have seq-id matches")
     parser.add_argument('-p', '--primary', action='store_true',
                         help = "restrict to primary assembly only")
+    parser.add_argument('-f', '--format', default = 'gff3', help = "input \
+                        file format; can be `gff3`, `gtf`, `bedgraph` or \
+                        `bed`; default is `gff3`")
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -173,4 +234,12 @@ if __name__ == '__main__':
     args = parser.parse_args()
     A = processargs(args)
     chrmap = chrnamedict(A.mapfile, A.id_from, A.id_to, A.p)
-    convgff3(A.fi, A.fo, chrmap, A.ku)
+    if args.format in ['gff3', 'gtf']:
+        convgxf(A.fi, A.fo, chrmap, A.ku)
+    elif args.format in ['bed', 'bedgraph']:
+        convbed(A.fi, A.fo, chrmap, A.ku)
+    else:
+        print(
+            "ERROR: invalid format. Choose from: `gff3`, `gtf`, `bedgraph`"
+            " or `bed`"
+            )
