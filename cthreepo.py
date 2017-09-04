@@ -1,4 +1,4 @@
-#!/home/kodalivk/envs/vkenv3/bin/python
+#!/usr/bin/env python
 
 import os
 import csv
@@ -85,7 +85,13 @@ def chrnamedict(mapfile, id_from, id_to, p):
     chrmap = {}
     with open(mapfile, 'r')  as f:
         tbl = csv.reader(f, delimiter = '\t')
-        if p == 'F':
+        if p == 'F' and id_from == 0:
+            for line in tbl:
+                if not line[0].startswith('#'):
+                    chrmap[line[id_from]] = line[id_to]
+                    # to deal with ens using gb seq-ids in their GTF
+                    chrmap[line[4]] = line[id_to]
+        if p == 'F' and id_from != 0:
             for line in tbl:
                 if not line[0].startswith('#'):
                     chrmap[line[id_from]] = line[id_to]
@@ -150,9 +156,11 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--mapfile',
                         help = "NCBI style assembly_report file for mapping")
     parser.add_argument('-if', '--id_from', default = 'uc', help = "seq-id \
-                        format in the input gff3 file; default is `uc`")
+                        format in the input gff3 file; can be `ens`, `uc`, \
+                        `gb`, or `rs`; default is `uc`")
     parser.add_argument('-it', '--id_to', default = 'rs', help = "seq-id \
-                        format in the output gff3 file; default is `rs`")
+                        format in the output gff3 file; can be `ens`, `uc`, \
+                        `gb`, or `rs`; default is `rs`")
     parser.add_argument('-ku', '--keep_unmapped', action='store_true',
                         help = "keep lines that don't have seq-id matches")
     parser.add_argument('-p', '--primary', action='store_true',
