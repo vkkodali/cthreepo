@@ -343,8 +343,8 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--primary', action='store_true',
                         help = "restrict to primary assembly only")
     parser.add_argument('-f', '--format', default = 'gff3', help = "input \
-                        file format; can be `gff3`, `gtf`, `bedgraph` or \
-                        `bed`; default is `gff3`")
+                        file format; can be `gff3`, `gtf`, `bedgraph` \
+                        `bed`, `sam`, or `wig`; default is `gff3`")
 
     if len(sys.argv) == 1:
         parser.print_help()
