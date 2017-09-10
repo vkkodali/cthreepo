@@ -6,7 +6,7 @@ import csv
 import sys
 import argparse
 import collections
-import multiprocessing as mp
+# import multiprocessing as mp
 
 # See http://stackoverflow.com/questions/14207708/ioerror-errno-32-broken-pipe-python
 from signal import signal, SIGPIPE, SIG_DFL
@@ -33,9 +33,9 @@ def processargs(args):
                 'gtf'      : convgxf,
                 'bed'      : convbed,
                 'bedgraph' : convbed,
-                'wig'      : convwig
                 # 'psl'      : convpsl,
-                # 'sam'      : convsam
+                'sam'      : convsam,
+                'wig'      : convwig
                 }
     ## check in and out files
     if args.infile:
@@ -108,14 +108,14 @@ def chrnamedict(mapfile, id_from, id_to, p):
         tbl = csv.reader(f, delimiter = '\t')
         if p == 'F' and id_from == 0:
             for line in tbl:
-                if not line[0].startswith('#'):
+                if not line[0].startswith('#') and line[id_to] != 'na':
                     chrmap[line[id_from]] = line[id_to]
                     # to deal with ens using gb seq-ids in their GTF
                     chrmap[line[4]] = line[id_to]
         if p == 'F' and id_from != 0:
             for line in tbl:
-                if not line[0].startswith('#'):
-                    chrmap[line[id_from]] = line[id_to]
+                if not line[0].startswith('#') and line[id_to] != 'na':
+                        chrmap[line[id_from]] = line[id_to]
         elif p == 'T':
             for line in tbl:
                 if not line[0].startswith('#') and line[0] == '1':
@@ -266,6 +266,54 @@ def convwig(fi, fo, chrmap, ku):
                 um_acc.add(f_seqid)
         else:
             x = fo.write(line)
+    if len(um_acc) > 0 and ku == 'F':
+        print(
+        "WARNING: {} accessions were not present in the mapfile; they are "
+        "dropped in the output file. {} of {} lines were dropped. "
+        "Use `-ku` option to keep them instead."
+        .format(len(um_acc), um_lines, all_lines)
+        )
+    fi.close()
+    fo.close()
+
+def convsam(fi, fo, chrmap, ku):
+    tblin = csv.reader(fi, delimiter = '\t')
+    tblout = csv.writer(
+                        fo,
+                        delimiter = '\t',
+                        quotechar = "'" ,
+                        escapechar = '\\'
+                        )
+    all_lines = 0
+    um_lines = 0
+    um_acc = set()
+    for line in tblin:
+        if not line[0].startswith('@'):
+            all_lines = all_lines + 1
+            if line[2] in chrmap:
+                chrom = chrmap[line[2]]
+                newline = line[:2] + [chrom] + line[3:]
+                x = tblout.writerow(newline)
+            elif ku == 'T':
+                um_lines = um_lines + 1
+                um_acc.add(line[2])
+                x = tblout.writerow(line)
+            else:
+                um_lines = um_lines + 1
+                um_acc.add(line[2])
+        elif line[0] == '@SQ':
+            f_seqid = line[1].split(':')[1]
+            if f_seqid in chrmap:
+                chrom = chrmap[f_seqid]
+                newline = [line[0]] + ['SN:' + chrom] + line[2:]
+                x = tblout.writerow(newline)
+            elif ku == 'T':
+                um_acc.add(f_seqid)
+                x = tblout.writerow(line)
+            else:
+                um_acc.add(f_seqid)
+        else:
+            x = tblout.writerow(line)
     if len(um_acc) > 0 and ku == 'F':
         print(
         "WARNING: {} accessions were not present in the mapfile; they are "
