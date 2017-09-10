@@ -6,7 +6,7 @@ import csv
 import sys
 import argparse
 import collections
-# import multiprocessing as mp
+import multiprocessing as mp
 
 # See http://stackoverflow.com/questions/14207708/ioerror-errno-32-broken-pipe-python
 from signal import signal, SIGPIPE, SIG_DFL
@@ -14,7 +14,7 @@ signal(SIGPIPE, SIG_DFL)
 
 def processargs(args):
     Args = collections.namedtuple('Args', ['fi', 'fo', 'mapfile', 'id_from',
-            'id_to', 'ku', 'p'])
+            'id_to', 'ku', 'p', 'conv_func'])
 
     mapfile_dict = {
                 'h38' : '/mapfiles/h38.map',
@@ -27,7 +27,16 @@ def processargs(args):
                 'gb': 4,
                 'rs': 6,
                 'uc': 9
-            }
+                }
+    format_dict = {
+                'gff3'     : convgxf,
+                'gtf'      : convgxf,
+                'bed'      : convbed,
+                'bedgraph' : convbed,
+                'wig'      : convwig
+                # 'psl'      : convpsl,
+                # 'sam'      : convsam
+                }
     ## check in and out files
     if args.infile:
         fi = open(args.infile, 'r')
@@ -70,8 +79,19 @@ def processargs(args):
         p = 'T'
     else:
         p = 'F'
+
+    ## check format
+    if args.format not in format_dict:
+        print(
+            "ERROR: invalid format. Choose from: {}"
+            .format(list(format_dict.keys()))
+            )
+        sys.exit()
+    else:
+        conv_func = format_dict[args.format ]
+
     ## return args
-    return Args(fi, fo, mapfile, id_from, id_to, ku, p)
+    return Args(fi, fo, mapfile, id_from, id_to, ku, p, conv_func)
 
 def chrnamedict(mapfile, id_from, id_to, p):
     """
@@ -119,7 +139,12 @@ def convgxf(fi, fo, chrmap, ku):
     unmapped : list of seq-ids that were unmapped
     """
     tblin = csv.reader(fi, delimiter = '\t')
-    tblout = csv.writer(fo, delimiter = '\t', quotechar = "'" , escapechar = '\\')
+    tblout = csv.writer(
+                        fo,
+                        delimiter = '\t',
+                        quotechar = "'" ,
+                        escapechar = '\\'
+                        )
     all_lines = 0
     um_lines = 0
     um_acc = set()
@@ -161,7 +186,12 @@ def convbed(fi, fo, chrmap, ku):
     unmapped : list of seq-ids that were unmapped
     """
     tblin = csv.reader(fi, delimiter = '\t')
-    tblout = csv.writer(fo, delimiter = '\t', quotechar = "'" , escapechar = '\\')
+    tblout = csv.writer(
+                        fo,
+                        delimiter = '\t',
+                        quotechar = "'" ,
+                        escapechar = '\\'
+                        )
     all_lines = 0
     um_lines = 0
     um_acc = set()
@@ -206,6 +236,47 @@ def convbed(fi, fo, chrmap, ku):
     fi.close()
     fo.close()
 
+def convwig(fi, fo, chrmap, ku):
+    """
+    Dropping lines with unmapped seq-ids does not make sense for wig files
+    because it essentially breaks the entire wig file. I am keeping it for
+    now, with the intention to remove it at a later point.
+    """
+    all_lines = 0
+    um_lines = 0
+    um_acc = set()
+    for line in fi:
+        if (
+            line.startswith('variableStep') or
+            line.startswith('fixedStep')
+            ):
+            all_lines = all_lines + 1
+            line = line.split()
+            f_seqid = line[1].split('=')[1]
+            if f_seqid in chrmap:
+                chrom = chrmap[f_seqid]
+                line[1] = re.sub(f_seqid, chrom, line[1])
+                x = fo.write(' '.join(line)+'\n')
+            elif ku == 'T':
+                um_lines = um_lines + 1
+                um_acc.add(f_seqid)
+                x = fo.write(' '.join(line)+'\n')
+            else:
+                um_lines = um_lines + 1
+                um_acc.add(f_seqid)
+        else:
+            x = fo.write(line)
+    if len(um_acc) > 0 and ku == 'F':
+        print(
+        "WARNING: {} accessions were not present in the mapfile; they are "
+        "dropped in the output file. {} of {} lines were dropped. "
+        "Use `-ku` option to keep them instead."
+        .format(len(um_acc), um_lines, all_lines)
+        )
+    fi.close()
+    fo.close()
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description ="""This script parses gtf/gff3
                 file and converts the seq-id name from one kind to the other""")
@@ -234,12 +305,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
     A = processargs(args)
     chrmap = chrnamedict(A.mapfile, A.id_from, A.id_to, A.p)
-    if args.format in ['gff3', 'gtf']:
-        convgxf(A.fi, A.fo, chrmap, A.ku)
-    elif args.format in ['bed', 'bedgraph']:
-        convbed(A.fi, A.fo, chrmap, A.ku)
-    else:
-        print(
-            "ERROR: invalid format. Choose from: `gff3`, `gtf`, `bedgraph`"
-            " or `bed`"
-            )
+    A.conv_func(A.fi, A.fo, chrmap, A.ku)
