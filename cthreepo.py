@@ -31,6 +31,7 @@ def processargs(args):
     format_dict = {
                 'gff3'     : convgxf,
                 'gtf'      : convgxf,
+                'vcf'      : convgxf,
                 'bed'      : convbed,
                 'bedgraph' : convbed,
                 # 'psl'      : convpsl,
@@ -344,7 +345,7 @@ if __name__ == '__main__':
                         help = "restrict to primary assembly only")
     parser.add_argument('-f', '--format', default = 'gff3', help = "input \
                         file format; can be `gff3`, `gtf`, `bedgraph` \
-                        `bed`, `sam`, or `wig`; default is `gff3`")
+                        `bed`, `sam`, `vcf` or `wig`; default is `gff3`")
 
     if len(sys.argv) == 1:
         parser.print_help()
