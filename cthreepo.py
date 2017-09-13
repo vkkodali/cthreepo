@@ -144,7 +144,8 @@ def convgxf(fi, fo, chrmap, ku):
                         fo,
                         delimiter = '\t',
                         quotechar = "'" ,
-                        escapechar = '\\'
+                        escapechar = '\\',
+                        lineterminator=os.linesep
                         )
     all_lines = 0
     um_lines = 0
@@ -191,7 +192,8 @@ def convbed(fi, fo, chrmap, ku):
                         fo,
                         delimiter = '\t',
                         quotechar = "'" ,
-                        escapechar = '\\'
+                        escapechar = '\\',
+                        lineterminator=os.linesep
                         )
     all_lines = 0
     um_lines = 0
@@ -283,7 +285,8 @@ def convsam(fi, fo, chrmap, ku):
                         fo,
                         delimiter = '\t',
                         quotechar = "'" ,
-                        escapechar = '\\'
+                        escapechar = '\\',
+                        lineterminator=os.linesep
                         )
     all_lines = 0
     um_lines = 0
