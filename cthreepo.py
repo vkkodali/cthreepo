@@ -29,9 +29,9 @@ def processargs(args):
                 'uc': 9
                 }
     format_dict = {
-                'gff3'     : convgff,
-                'gtf'      : convgtf,
-                'vcf'      : convgff,
+                'gff3'     : convgxf,
+                'gtf'      : convgxf,
+                'vcf'      : convgxf,
                 'bed'      : convbed,
                 'bedgraph' : convbed,
                 # 'psl'      : convpsl,
@@ -128,7 +128,7 @@ def chrnamedict(mapfile, id_from, id_to, p):
                     chrmap[line[id_from]] = line[id_to]
     return chrmap
 
-def convgtf(fi, fo, chrmap, ku):
+def convgxf(fi, fo, chrmap, ku):
     """
     converts seq-ids in the `infile` to the desired format and writes output
     to `outfile`
@@ -143,54 +143,8 @@ def convgtf(fi, fo, chrmap, ku):
     tblout = csv.writer(
                         fo,
                         delimiter = '\t',
-                        quotechar = "'" ,
+                        quotechar = "`" ,
                         escapechar = '\\',
-                        lineterminator=os.linesep
-                        )
-    all_lines = 0
-    um_lines = 0
-    um_acc = set()
-    for line in tblin:
-        if not line[0].startswith("#"):
-            all_lines = all_lines + 1
-            if line[0] in chrmap:
-                chrom = chrmap[line[0]]
-                newline = [chrom] + line[1:]
-                x = tblout.writerow(newline)
-            elif ku == 'T':
-                um_lines = um_lines + 1
-                um_acc.add(line[0])
-                x = tblout.writerow(line)
-            else:
-                um_lines = um_lines + 1
-                um_acc.add(line[0])
-        else:
-            x = tblout.writerow(line)
-    if len(um_acc) > 0 and ku == 'F':
-        print(
-        "WARNING: {} accessions were not present in the mapfile; they are "
-        "dropped in the output file. {} of {} lines were dropped. "
-        "Use `-ku` option to keep them instead."
-        .format(len(um_acc), um_lines, all_lines)
-        )
-    fi.close()
-    fo.close()
-
-def convgff(fi, fo, chrmap, ku):
-    """
-    converts seq-ids in the `infile` to the desired format and writes output
-    to `outfile`
-    ## params
-    infile  : input file, gff3 or gtf format
-    outfile : output file with swapped seq-ids; same format as input
-    chrmap  : dict object with id_from:id_to
-    ## returns
-    unmapped : list of seq-ids that were unmapped
-    """
-    tblin = csv.reader(fi, delimiter = '\t')
-    tblout = csv.writer(
-                        fo,
-                        delimiter = '\t',
                         lineterminator=os.linesep
                         )
     all_lines = 0
@@ -372,17 +326,17 @@ def convsam(fi, fo, chrmap, ku):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description ="""This script parses gtf/gff3
+    parser = argparse.ArgumentParser(description ="""This script parses input
                 file and converts the seq-id name from one kind to the other""")
-    parser.add_argument('-i', '--infile', help="input gff3 file")
-    parser.add_argument('-o', '--outfile', help="output gff3 file")
+    parser.add_argument('-i', '--infile', help="input file")
+    parser.add_argument('-o', '--outfile', help="output file")
     parser.add_argument('-m', '--mapfile',
                         help = "NCBI style assembly_report file for mapping")
     parser.add_argument('-if', '--id_from', default = 'uc', help = "seq-id \
-                        format in the input gff3 file; can be `ens`, `uc`, \
+                        format in the input file; can be `ens`, `uc`, \
                         `gb`, or `rs`; default is `uc`")
     parser.add_argument('-it', '--id_to', default = 'rs', help = "seq-id \
-                        format in the output gff3 file; can be `ens`, `uc`, \
+                        format in the output file; can be `ens`, `uc`, \
                         `gb`, or `rs`; default is `rs`")
     parser.add_argument('-ku', '--keep_unmapped', action='store_true',
                         help = "keep lines that don't have seq-id matches")
