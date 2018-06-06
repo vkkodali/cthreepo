@@ -8,6 +8,8 @@ import argparse
 import collections
 # import multiprocessing as mp
 
+csv.field_size_limit(250000)
+
 # See http://stackoverflow.com/questions/14207708/ioerror-errno-32-broken-pipe-python
 from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE, SIG_DFL)
