@@ -115,6 +115,8 @@ def chrnamedict(mapfile, id_from, id_to, p):
                     chrmap[line[id_from]] = line[id_to]
                     # to deal with ens using gb seq-ids in their GTF
                     chrmap[line[4]] = line[id_to]
+                    # to deal with ens prepending CHR to their patches, etc
+                    chrmap['CHR_'+line[id_from]] = line[id_to]
         if p == 'F' and id_from != 0:
             for line in tbl:
                 if not line[0].startswith('#') and line[id_to] != 'na':
