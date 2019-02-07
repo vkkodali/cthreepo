@@ -160,16 +160,29 @@ def convgxf(fi, fo, chrmap, ku):
             if line[0] in chrmap:
                 chrom = chrmap[line[0]]
                 newline = [chrom] + line[1:]
-                x = tblout.writerow(newline)
+                tblout.writerow(newline)
             elif ku == 'T':
                 um_lines = um_lines + 1
                 um_acc.add(line[0])
-                x = tblout.writerow(line)
+                tblout.writerow(line)
             else:
                 um_lines = um_lines + 1
                 um_acc.add(line[0])
+        elif line[0].startswith('##sequence-region'):
+            line = line[0].split(' ')
+            if line[1] in chrmap:
+                chrom = chrmap[line[1]]
+                newline = ' '.join([line[0]] + [chrom] + line[2:])
+                tblout.writerow([newline])
+            elif ku == 'T':
+                um_lines = um_lines + 1
+                um_acc.add(line[1])
+                tblout.writerow(line)
+            else:
+                um_lines = um_lines + 1
+                um_acc.add(line[1])
         else:
-            x = tblout.writerow(line)
+            tblout.writerow(line)
     if len(um_acc) > 0 and ku == 'F':
         print(
         "WARNING: {} accessions were not present in the mapfile; they are "
@@ -213,11 +226,11 @@ def convbed(fi, fo, chrmap, ku):
             if line[0] in chrmap:
                 chrom = chrmap[line[0]]
                 newline = [chrom] + line[1:]
-                x = tblout.writerow(newline)
+                tblout.writerow(newline)
             elif ku == 'T':
                 um_lines = um_lines + 1
                 um_acc.add(line[0])
-                x = tblout.writerow(line)
+                tblout.writerow(line)
             else:
                 um_lines = um_lines + 1
                 um_acc.add(line[0])
@@ -228,9 +241,9 @@ def convbed(fi, fo, chrmap, ku):
             t_seqid = chrmap[line[2].split(':')[0]]
             line[2] = re.sub(f_seqid, t_seqid, line[2])
             line = [' '.join(line)]
-            x = tblout.writerow(line)
+            tblout.writerow(line)
         else:
-            x = tblout.writerow(line)
+            tblout.writerow(line)
     if len(um_acc) > 0 and ku == 'F':
         print(
         "WARNING: {} accessions were not present in the mapfile; they are "
@@ -261,16 +274,16 @@ def convwig(fi, fo, chrmap, ku):
             if f_seqid in chrmap:
                 chrom = chrmap[f_seqid]
                 line[1] = re.sub(f_seqid, chrom, line[1])
-                x = fo.write(' '.join(line)+'\n')
+                fo.write(' '.join(line)+'\n')
             elif ku == 'T':
                 um_lines = um_lines + 1
                 um_acc.add(f_seqid)
-                x = fo.write(' '.join(line)+'\n')
+                fo.write(' '.join(line)+'\n')
             else:
                 um_lines = um_lines + 1
                 um_acc.add(f_seqid)
         else:
-            x = fo.write(line)
+            fo.write(line)
     if len(um_acc) > 0 and ku == 'F':
         print(
         "WARNING: {} accessions were not present in the mapfile; they are "
@@ -297,11 +310,11 @@ def convsam(fi, fo, chrmap, ku):
             if line[2] in chrmap:
                 chrom = chrmap[line[2]]
                 newline = line[:2] + [chrom] + line[3:]
-                x = tblout.writerow(newline)
+                tblout.writerow(newline)
             elif ku == 'T':
                 um_lines = um_lines + 1
                 um_acc.add(line[2])
-                x = tblout.writerow(line)
+                tblout.writerow(line)
             else:
                 um_lines = um_lines + 1
                 um_acc.add(line[2])
@@ -310,14 +323,14 @@ def convsam(fi, fo, chrmap, ku):
             if f_seqid in chrmap:
                 chrom = chrmap[f_seqid]
                 newline = [line[0]] + ['SN:' + chrom] + line[2:]
-                x = tblout.writerow(newline)
+                tblout.writerow(newline)
             elif ku == 'T':
                 um_acc.add(f_seqid)
-                x = tblout.writerow(line)
+                tblout.writerow(line)
             else:
                 um_acc.add(f_seqid)
         else:
-            x = tblout.writerow(line)
+            tblout.writerow(line)
     if len(um_acc) > 0 and ku == 'F':
         print(
         "WARNING: {} accessions were not present in the mapfile; they are "
