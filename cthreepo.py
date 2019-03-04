@@ -42,12 +42,12 @@ def processargs(args):
                 }
     ## check in and out files
     if args.infile:
-        fi = open(args.infile, 'r')
+        fi = open(args.infile, 'rt')
     else:
         fi = sys.stdin
 
     if args.outfile:
-        fo = open(args.outfile, 'w')
+        fo = open(args.outfile, 'wt')
     else:
         fo = sys.stdout
 
@@ -143,12 +143,16 @@ def convgxf(fi, fo, chrmap, ku):
     ## returns
     unmapped : list of seq-ids that were unmapped
     """
-    tblin = csv.reader(fi, delimiter = '\t')
+    tblin = csv.reader( fi,
+                        delimiter = '\t'
+                        )
     tblout = csv.writer(
                         fo,
                         delimiter = '\t',
-                        quotechar = "`" ,
-                        escapechar = '\\',
+                        # doublequote = False,
+                        # quoting = csv.QUOTE_NONE,
+                        quotechar = "\xb6",
+                        # escapechar = '\\',
                         lineterminator=os.linesep
                         )
     all_lines = 0
