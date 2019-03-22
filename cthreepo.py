@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 import re
@@ -55,8 +55,8 @@ def processargs(args):
     if not args.mapfile:
         print(
         "ERROR: mapfile required. Can be an NCBI assembly_report file or "
-        "one of `h37`, `h38`, `m37` and `m38` for preloaded lists"
-        )
+        "one of `h37`, `h38`, `m37` and `m38` for preloaded lists",
+        file = sys.stderr)
         sys.exit()
     elif args.mapfile in mapfile_dict:
         mapfile = os.path.abspath(os.path.dirname(sys.argv[0])) + mapfile_dict[args.mapfile]
@@ -67,7 +67,8 @@ def processargs(args):
     if args.id_from not in id_dict or args.id_to not in id_dict:
         print(
         "ERROR: id_from and id_to can only be one of the following:"
-        "`ens`, `gb`, `rs` or `uc`")
+        "`ens`, `gb`, `rs` or `uc`",
+        file = sys.stderr)
         sys.exit()
     else:
         id_from = id_dict[args.id_from]
@@ -87,8 +88,8 @@ def processargs(args):
     if args.format not in format_dict:
         print(
             "ERROR: invalid format. Choose from: {}"
-            .format(list(format_dict.keys()))
-            )
+            .format(list(format_dict.keys())),
+            file = sys.stderr)
         sys.exit()
     else:
         conv_func = format_dict[args.format ]
@@ -192,8 +193,8 @@ def convgxf(fi, fo, chrmap, ku):
         "WARNING: {} accessions were not present in the mapfile; they are "
         "dropped in the output file. {} of {} lines were dropped. "
         "Use `-ku` option to keep them instead."
-        .format(len(um_acc), um_lines, all_lines)
-        )
+        .format(len(um_acc), um_lines, all_lines),
+        file = sys.stderr)
     fi.close()
     fo.close()
 
@@ -253,8 +254,8 @@ def convbed(fi, fo, chrmap, ku):
         "WARNING: {} accessions were not present in the mapfile; they are "
         "dropped in the output file. {} of {} lines were dropped. "
         "Use `-ku` option to keep them instead."
-        .format(len(um_acc), um_lines, all_lines)
-        )
+        .format(len(um_acc), um_lines, all_lines),
+        file = sys.stderr)
     fi.close()
     fo.close()
 
@@ -293,8 +294,8 @@ def convwig(fi, fo, chrmap, ku):
         "WARNING: {} accessions were not present in the mapfile; they are "
         "dropped in the output file. {} of {} lines were dropped. "
         "Use `-ku` option to keep them instead."
-        .format(len(um_acc), um_lines, all_lines)
-        )
+        .format(len(um_acc), um_lines, all_lines),
+        file = sys.stderr)
     fi.close()
     fo.close()
 
@@ -340,8 +341,8 @@ def convsam(fi, fo, chrmap, ku):
         "WARNING: {} accessions were not present in the mapfile; they are "
         "dropped in the output file. {} of {} lines were dropped. "
         "Use `-ku` option to keep them instead."
-        .format(len(um_acc), um_lines, all_lines)
-        )
+        .format(len(um_acc), um_lines, all_lines),
+        file = sys.stderr)
     fi.close()
     fo.close()
 
