@@ -213,6 +213,7 @@ def convbed(fi, fo, chrmap, ku):
     tblout = csv.writer(
                         fo,
                         delimiter = '\t',
+                        quotechar = "\xb6",
                         lineterminator=os.linesep
                         )
     all_lines = 0
@@ -304,6 +305,7 @@ def convsam(fi, fo, chrmap, ku):
     tblout = csv.writer(
                         fo,
                         delimiter = '\t',
+                        quotechar = "\xb6",
                         lineterminator=os.linesep
                         )
     all_lines = 0
