@@ -6,7 +6,6 @@ import csv
 import sys
 import argparse
 import collections
-# import multiprocessing as mp
 
 csv.field_size_limit(5000000)
 
@@ -16,7 +15,7 @@ signal(SIGPIPE, SIG_DFL)
 
 def processargs(args):
     Args = collections.namedtuple('Args', ['fi', 'fo', 'mapfile', 'id_from',
-            'id_to', 'ku', 'p', 'conv_func'])
+            'id_to', 'ku', 'p', 'conv_func', 'col'])
 
     mapfile_dict = {
                 'h38' : '/mapfiles/h38.map',
@@ -28,7 +27,11 @@ def processargs(args):
                 'ens': 0,
                 'gb': 4,
                 'rs': 6,
-                'uc': 9
+                'uc': 9,
+                'ensembl': 0,
+                'genbank': 4,
+                'refseq': 6,
+                'ucsc': 9,
                 }
     format_dict = {
                 'gff3'     : convgxf,
@@ -36,7 +39,7 @@ def processargs(args):
                 'vcf'      : convgxf,
                 'bed'      : convbed,
                 'bedgraph' : convbed,
-                # 'psl'      : convpsl,
+                'tsv'      : convtsv,
                 'sam'      : convsam,
                 'wig'      : convwig
                 }
@@ -64,15 +67,16 @@ def processargs(args):
         mapfile = args.mapfile
 
     ## check id_from and id_to
-    if args.id_from not in id_dict or args.id_to not in id_dict:
+    id_from = args.id_from.lower().strip(' ')
+    id_to = args.id_to.lower().strip(' ')
+    if id_from not in id_dict or id_to not in id_dict:
         print(
-        "ERROR: id_from and id_to can only be one of the following:"
-        "`ens`, `gb`, `rs` or `uc`",
+        "ERROR: id_from and id_to can only be one of the following:", ', '.join(id_dict),
         file = sys.stderr)
         sys.exit()
     else:
-        id_from = id_dict[args.id_from]
-        id_to = id_dict[args.id_to]
+        id_from = id_dict[id_from]
+        id_to = id_dict[id_to]
 
     if args.keep_unmapped:
         ku = 'T'
@@ -85,17 +89,30 @@ def processargs(args):
         p = 'F'
 
     ## check format
-    if args.format not in format_dict:
+    format = args.format.lower().strip(' ')
+    if format not in format_dict:
         print(
-            "ERROR: invalid format. Choose from: {}"
-            .format(list(format_dict.keys())),
+            "ERROR: invalid format. Choose from:", ', '.join(format_dict),
             file = sys.stderr)
         sys.exit()
     else:
-        conv_func = format_dict[args.format ]
+        conv_func = format_dict[format]
+
+    ## check column
+    col = 'NA' # default value in case column not provided
+    if args.format == 'tsv':
+        if not args.column:
+            print("ERROR: `col` required for `tsv` format", file = sys.stderr)
+            sys.exit()
+        else:
+            try:
+                col = int(args.column) - 1 # user provides col in 1-based number
+            except:
+                print("ERROR: `col` can only be an integer", file = sys.stderr)
+                sys.exit()
 
     ## return args
-    return Args(fi, fo, mapfile, id_from, id_to, ku, p, conv_func)
+    return Args(fi, fo, mapfile, id_from, id_to, ku, p, conv_func, col)
 
 def chrnamedict(mapfile, id_from, id_to, p):
     """
@@ -126,6 +143,7 @@ def chrnamedict(mapfile, id_from, id_to, p):
             for line in tbl:
                 if not line[0].startswith('#') and line[0] == '1':
                     au = line[7]
+                    print(au, file=sys.stderr)
                     chrmap[line[id_from]] = line[id_to]
                     break
             for line in tbl:
@@ -348,6 +366,68 @@ def convsam(fi, fo, chrmap, ku):
     fi.close()
     fo.close()
 
+def convtsv(fi, fo, chrmap, ku, col):
+    """
+    converts seq-ids in the `infile` to the desired format and writes output
+    to `outfile`
+    ## params
+    infile  : input file, some kind of tab-delimited format
+    outfile : output file with swapped seq-ids; same format as input
+    col     : column number where the seq-id is located (1-based)
+    chrmap  : dict object with id_from:id_to
+    ## returns
+    unmapped : list of seq-ids that were unmapped
+    """
+    tblin = csv.reader(fi, delimiter = '\t')
+    tblout = csv.writer(
+                        fo,
+                        delimiter = '\t',
+                        quotechar = "\xb6",
+                        lineterminator=os.linesep
+                        )
+    all_lines = 0
+    um_lines = 0
+    um_acc = set()
+    for line in tblin:
+        if not (
+            line[0].startswith('#') or
+            line[0].startswith('track') or
+            line[0].startswith('browser')
+            ):
+            all_lines = all_lines + 1
+            if len(line) == 1:
+                line = re.sub(' +',' ', line[0])
+                line = [item for item in line.split()]
+            if line[col] in chrmap:
+                chrom = chrmap[line[col]]
+                newline = line[:col] + [chrom] + line[col+1:]
+                tblout.writerow(newline)
+            elif ku == 'T':
+                um_lines = um_lines + 1
+                um_acc.add(line[col])
+                tblout.writerow(line)
+            else:
+                um_lines = um_lines + 1
+                um_acc.add(line[col])
+        elif 'browser position' in line[0]:
+            line = re.sub(' +',' ', line[0])
+            line = [item for item in line.split()]
+            f_seqid = line[2].split(':')[0]
+            t_seqid = chrmap[line[2].split(':')[0]]
+            line[2] = re.sub(f_seqid, t_seqid, line[2])
+            line = [' '.join(line)]
+            tblout.writerow(line)
+        else:
+            tblout.writerow(line)
+    if len(um_acc) > 0 and ku == 'F':
+        print(
+        "WARNING: {} accessions were not present in the mapfile; they are "
+        "dropped in the output file. {} of {} lines were dropped. "
+        "Use `-ku` option to keep them instead."
+        .format(len(um_acc), um_lines, all_lines),
+        file = sys.stderr)
+    fi.close()
+    fo.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description ="""This script parses input
@@ -368,7 +448,9 @@ if __name__ == '__main__':
                         help = "restrict to primary assembly only")
     parser.add_argument('-f', '--format', default = 'gff3', help = "input \
                         file format; can be `gff3`, `gtf`, `bedgraph` \
-                        `bed`, `sam`, `vcf` or `wig`; default is `gff3`")
+                        `bed`, `sam`, `vcf`, `wig` or `tsv`; default is `gff3`")
+    parser.add_argument('-c', '--column', help = "column where the seq-id \
+                        is located; required for `tsv` format")
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -377,4 +459,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     A = processargs(args)
     chrmap = chrnamedict(A.mapfile, A.id_from, A.id_to, A.p)
-    A.conv_func(A.fi, A.fo, chrmap, A.ku)
+    if A.conv_func == convtsv:
+        A.conv_func(A.fi, A.fo, chrmap, A.ku, A.col)
+    else:
+        A.conv_func(A.fi, A.fo, chrmap, A.ku)
