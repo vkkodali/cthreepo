@@ -18,10 +18,10 @@ def processargs(args):
             'id_to', 'ku', 'p', 'conv_func', 'col'])
 
     mapfile_dict = {
-                'h38' : '/mapfiles/h38.map',
-                'h37' : '/mapfiles/h37.map',
-                'm38' : '/mapfiles/m38.map',
-                'm37' : '/mapfiles/m37.map'
+                'h38': 'mapfiles/h38.map',
+                'h37': 'mapfiles/h37.map',
+                'm38': 'mapfiles/m38.map',
+                'm37': 'mapfiles/m37.map'
                 }
     id_dict = {
                 'ens': 0,
@@ -62,7 +62,10 @@ def processargs(args):
         file = sys.stderr)
         sys.exit()
     elif args.mapfile in mapfile_dict:
-        mapfile = os.path.abspath(os.path.dirname(sys.argv[0])) + mapfile_dict[args.mapfile]
+        # Determine the directory of the current module
+        this_dir, _ = os.path.split(__file__)
+        # Derive relative directory
+        mapfile = os.path.join(this_dir, mapfile_dict[args.mapfile])
     else:
         mapfile = args.mapfile
 
@@ -429,7 +432,7 @@ def convtsv(fi, fo, chrmap, ku, col):
     fi.close()
     fo.close()
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description ="""This script parses input
                 file and converts the seq-id name from one kind to the other""")
     parser.add_argument('-i', '--infile', help="input file")
