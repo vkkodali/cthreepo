@@ -432,6 +432,7 @@ def convtsv(fi, fo, chrmap, ku, col):
     fi.close()
     fo.close()
 
+
 def main():
     parser = argparse.ArgumentParser(description ="""This script parses input
                 file and converts the seq-id name from one kind to the other""")
