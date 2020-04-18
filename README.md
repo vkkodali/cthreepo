@@ -12,7 +12,6 @@ python3 setup.py install
 ## convert seq-ids in <input.gff3> from refseq format (NC_000001.11)
 ## to UCSC format (chr1) using the Human GRCh38 mapping dictionary
 cthreepo -i <input.gff3> -if rs -it uc -f gff3 -m h38 -o <output.gff3>
-
 ```
 ---
 ## Introduction
