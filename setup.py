@@ -13,4 +13,5 @@ setup(name='cthreepo',
         'console_scripts': ['cthreepo=cthreepo:main'],
     },
     package_data={'cthreepo': ['mapfiles/*.map']},
+    install_requires=['requests']
 )

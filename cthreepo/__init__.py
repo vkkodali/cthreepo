@@ -6,6 +6,7 @@ import csv
 import sys
 import argparse
 import collections
+from .fetch_assm_report import *
 
 csv.field_size_limit(5000000)
 
@@ -14,7 +15,7 @@ from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE, SIG_DFL)
 
 def processargs(args):
-    Args = collections.namedtuple('Args', ['fi', 'fo', 'mapfile', 'id_from',
+    Args = collections.namedtuple('Args', ['fi', 'fo', 'mapfile', 'accn', 'id_from',
             'id_to', 'ku', 'p', 'conv_func', 'col'])
 
     mapfile_dict = {
@@ -55,19 +56,19 @@ def processargs(args):
         fo = sys.stdout
 
     ## check mapfile
-    if not args.mapfile:
-        print(
-        "ERROR: mapfile required. Can be an NCBI assembly_report file or "
-        "one of `h37`, `h38`, `m37` and `m38` for preloaded lists",
-        file = sys.stderr)
-        sys.exit()
-    elif args.mapfile in mapfile_dict:
-        # Determine the directory of the current module
-        this_dir, _ = os.path.split(__file__)
-        # Derive relative directory
-        mapfile = os.path.join(this_dir, mapfile_dict[args.mapfile])
+    if args.mapfile:
+        if args.mapfile in mapfile_dict:
+            # Determine the directory of the current module
+            this_dir, _ = os.path.split(__file__)
+            # Derive relative directory
+            mapfile = os.path.join(this_dir, mapfile_dict[args.mapfile])
+        else:
+            mapfile = args.mapfile
     else:
-        mapfile = args.mapfile
+        mapfile = None
+
+    ## check assm_acc
+    accn = args.accn if args.accn else None    
 
     ## check id_from and id_to
     id_from = args.id_from.lower().strip(' ')
@@ -115,9 +116,14 @@ def processargs(args):
                 sys.exit()
 
     ## return args
-    return Args(fi, fo, mapfile, id_from, id_to, ku, p, conv_func, col)
+    return Args(fi, fo, mapfile, accn, id_from, id_to, ku, p, conv_func, col)
 
-def chrnamedict(mapfile, id_from, id_to, p):
+def create_maptbl(mapfile):
+    with open(mapfile, 'r') as f:
+        maptbl = f.readlines()
+    return maptbl
+
+def chrnamedict(maptbl, id_from, id_to, p):
     """
     create a mapping dict that will be used swap seq-ids in the input file
     ## params
@@ -128,30 +134,29 @@ def chrnamedict(mapfile, id_from, id_to, p):
     chrmap  : a dict object with id_from:id_to
     """
     chrmap = {}
-    with open(mapfile, 'r')  as f:
-        tbl = csv.reader(f, delimiter = '\t')
-        if p == 'F' and id_from == 0:
-            for line in tbl:
-                if not line[0].startswith('#') and line[id_to] != 'na':
+    tbl = csv.reader(maptbl, delimiter = '\t')
+    if p == 'F' and id_from == 0:
+        for line in tbl:
+            if not line[0].startswith('#') and line[id_to] != 'na':
+                chrmap[line[id_from]] = line[id_to]
+                # to deal with ens using gb seq-ids in their GTF
+                chrmap[line[4]] = line[id_to]
+                # to deal with ens prepending CHR to their patches, etc
+                chrmap['CHR_'+line[id_from]] = line[id_to]
+    if p == 'F' and id_from != 0:
+        for line in tbl:
+            if not line[0].startswith('#') and line[id_to] != 'na':
                     chrmap[line[id_from]] = line[id_to]
-                    # to deal with ens using gb seq-ids in their GTF
-                    chrmap[line[4]] = line[id_to]
-                    # to deal with ens prepending CHR to their patches, etc
-                    chrmap['CHR_'+line[id_from]] = line[id_to]
-        if p == 'F' and id_from != 0:
-            for line in tbl:
-                if not line[0].startswith('#') and line[id_to] != 'na':
-                        chrmap[line[id_from]] = line[id_to]
-        elif p == 'T':
-            for line in tbl:
-                if not line[0].startswith('#') and line[0] == '1':
-                    au = line[7]
-                    print(au, file=sys.stderr)
-                    chrmap[line[id_from]] = line[id_to]
-                    break
-            for line in tbl:
-                if not line[0].startswith('#') and line[7] == au:
-                    chrmap[line[id_from]] = line[id_to]
+    elif p == 'T':
+        for line in tbl:
+            if not line[0].startswith('#') and line[0] == '1':
+                au = line[7]
+                print(au, file=sys.stderr)
+                chrmap[line[id_from]] = line[id_to]
+                break
+        for line in tbl:
+            if not line[0].startswith('#') and line[7] == au:
+                chrmap[line[id_from]] = line[id_to]
     return chrmap
 
 def convgxf(fi, fo, chrmap, ku):
@@ -438,8 +443,11 @@ def main():
                 file and converts the seq-id name from one kind to the other""")
     parser.add_argument('-i', '--infile', help="input file")
     parser.add_argument('-o', '--outfile', help="output file")
-    parser.add_argument('-m', '--mapfile',
+    mapgroup = parser.add_mutually_exclusive_group(required=True)
+    mapgroup.add_argument('-m', '--mapfile',
                         help = "NCBI style assembly_report file for mapping")
+    mapgroup.add_argument('-a', '--accn',
+                        help = "NCBI Assembly Accession with version")
     parser.add_argument('-if', '--id_from', default = 'uc', help = "seq-id \
                         format in the input file; can be `ens`, `uc`, \
                         `gb`, or `rs`; default is `uc`")
@@ -462,7 +470,16 @@ def main():
 
     args = parser.parse_args()
     A = processargs(args)
-    chrmap = chrnamedict(A.mapfile, A.id_from, A.id_to, A.p)
+    
+    if A.mapfile:
+        maptbl = create_maptbl(A.mapfile)
+    elif A.accn:
+        esearch_result = perform_esearch(A.accn)
+        esummary_result = perform_esummary(esearch_result)
+        maptbl = fetch_asm_rpt(esummary_result)
+    
+    chrmap = chrnamedict(maptbl, A.id_from, A.id_to, A.p)
+
     if A.conv_func == convtsv:
         A.conv_func(A.fi, A.fo, chrmap, A.ku, A.col)
     else:
