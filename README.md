@@ -49,4 +49,8 @@ cthreepo \
 8. TSV
 
 ## Mapping files
-`cthreepo` expects a `mapfile` that it uses to figure out how seq-ids map from one style to the other. For human and mouse assemblies, one can use the built-in shortcuts but for all other organisms, an NCBI assembly report file needs to be provided. For a given assembly it can be downloaded from the [NCBI Assembly](https://www.ncbi.nlm.nih.gov/assembly) website. If the 'Download' button is used, this file is called 'Assembly structure report'. On the NCBI Genomes FTP site, these files have the suffix `assembly_report.txt`. 
+`cthreepo` needs a `mapfile` that it uses to figure out how seq-ids map from one style to the other. 
+* Use the built-in shortcuts -- `h38`, `h37`, `m38` and `m37` for GRCh38/hg38, GRCh37/hg19, MGSCv37/mm9 and GRCm38/mm10 respectively. I try to keep these files up-to-date but if they don't work as expected, I suggest using the latest file by following one of the two options described below.
+* Provide NCBI assembly accession using the `-a` parameter. A complete, legal accession.version such as GCF_000001405.39 should be provided. 
+* Provide an NCBI assembly report file. For a given assembly it can be downloaded from the [NCBI Assembly](https://www.ncbi.nlm.nih.gov/assembly) website. If the 'Download' button is used, this file is called 'Assembly structure report'. On the [NCBI Genomes FTP](https://ftp.ncbi.nlm.nih.gov/genomes/all/) site, these files have the suffix `assembly_report.txt`. 
+
