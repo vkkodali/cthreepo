@@ -71,36 +71,16 @@ def processargs(args):
     accn = args.accn if args.accn else None    
 
     ## check id_from and id_to
-    id_from = args.id_from.lower().strip(' ')
-    id_to = args.id_to.lower().strip(' ')
-    if id_from not in id_dict or id_to not in id_dict:
-        print(
-        "ERROR: id_from and id_to can only be one of the following:", ', '.join(id_dict),
-        file = sys.stderr)
-        sys.exit()
-    else:
-        id_from = id_dict[id_from]
-        id_to = id_dict[id_to]
+    id_from = id_dict[args.id_from.lower().strip()]
+    id_to = id_dict[args.id_to.lower().strip()]
 
-    if args.keep_unmapped:
-        ku = 'T'
-    else:
-        ku = 'F'
+    ku = 'T' if args.keep_unmapped else 'F'
 
-    if args.primary:
-        p = 'T'
-    else:
-        p = 'F'
+    p = 'T' if args.primary else 'F'
 
     ## check format
-    format = args.format.lower().strip(' ')
-    if format not in format_dict:
-        print(
-            "ERROR: invalid format. Choose from:", ', '.join(format_dict),
-            file = sys.stderr)
-        sys.exit()
-    else:
-        conv_func = format_dict[format]
+    format = args.format.lower().strip()
+    conv_func = format_dict[format]
 
     ## check column
     col = 'NA' # default value in case column not provided
@@ -109,11 +89,7 @@ def processargs(args):
             print("ERROR: `col` required for `tsv` format", file = sys.stderr)
             sys.exit()
         else:
-            try:
-                col = int(args.column) - 1 # user provides col in 1-based number
-            except:
-                print("ERROR: `col` can only be an integer", file = sys.stderr)
-                sys.exit()
+            col = args.column - 1 # user provides col in 1-based number
 
     ## return args
     return Args(fi, fo, mapfile, accn, id_from, id_to, ku, p, conv_func, col)
@@ -448,21 +424,30 @@ def main():
                         help = "NCBI style assembly_report file for mapping")
     mapgroup.add_argument('-a', '--accn',
                         help = "NCBI Assembly Accession with version")
-    parser.add_argument('-if', '--id_from', default = 'uc', help = "seq-id \
-                        format in the input file; can be `ens`, `uc`, \
-                        `gb`, or `rs`; default is `uc`")
-    parser.add_argument('-it', '--id_to', default = 'rs', help = "seq-id \
-                        format in the output file; can be `ens`, `uc`, \
-                        `gb`, or `rs`; default is `rs`")
+    parser.add_argument('-if', '--id_from', default = 'uc',
+                        choices = ['uc', 'rs', 'gb', 'ens'],
+                        type = lambda s: s.lower().strip(),
+                        help = "seq-id format in the input file; can be \
+                            `ens`, `uc`, `gb`, or `rs`; default is `uc`")
+    parser.add_argument('-it', '--id_to', default = 'rs', 
+                        choices = ['uc', 'rs', 'gb', 'ens'],
+                        type = lambda s: s.lower().strip(),
+                        help = "seq-id format in the output file; can be \
+                            `ens`, `uc`, `gb`, or `rs`; default is `rs`")
     parser.add_argument('-ku', '--keep_unmapped', action='store_true',
                         help = "keep lines that don't have seq-id matches")
     parser.add_argument('-p', '--primary', action='store_true',
                         help = "restrict to primary assembly only")
-    parser.add_argument('-f', '--format', default = 'gff3', help = "input \
-                        file format; can be `gff3`, `gtf`, `bedgraph` \
-                        `bed`, `sam`, `vcf`, `wig` or `tsv`; default is `gff3`")
-    parser.add_argument('-c', '--column', help = "column where the seq-id \
-                        is located; required for `tsv` format")
+    parser.add_argument('-f', '--format', default = 'gff3', 
+                        choices = ['gff3', 'gtf', 'bedgraph', 'bed',
+                            'sam', 'vcf', 'wig', 'tsv'],
+                        type = lambda s: s.lower().strip(),
+                        help = "input file format; can be `gff3`, `gtf`, \
+                            `bedgraph`, `bed`, `sam`, `vcf`, `wig` or `tsv`; \
+                            default is `gff3`")
+    parser.add_argument('-c', '--column', type = int,
+                        help = "column where the seq-id is located; \
+                            required for `tsv` format")
 
     if len(sys.argv) == 1:
         parser.print_help()
