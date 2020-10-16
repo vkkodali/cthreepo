@@ -44,7 +44,7 @@ def convgxf(fi, fo, chrmap, ku):
                 um_lines = um_lines + 1
                 um_acc.add(line[0])
         elif line[0].startswith('##sequence-region'):
-            line = line[0].split(' ')
+            line = line[0].split()
             if line[1] in chrmap:
                 chrom = chrmap[line[1]]
                 newline = ' '.join([line[0]] + [chrom] + line[2:])
