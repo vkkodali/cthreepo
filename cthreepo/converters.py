@@ -186,7 +186,10 @@ def convsam(fi, fo, chrmap, ku):
             all_lines = all_lines + 1
             if line[2] in chrmap:
                 chrom = chrmap[line[2]]
-                newline = line[:2] + [chrom] + line[3:]
+                pair_chrom = chrmap.get(line[6], line[6])
+                newline = line.copy()
+                newline[2] = chrom
+                newline[6] = pair_chrom
                 tblout.writerow(newline)
             elif ku == 'T':
                 um_lines = um_lines + 1
