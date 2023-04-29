@@ -1,155 +1,7 @@
-#!/usr/bin/env python3
-
-import os
-import re
 import csv
+import re 
 import sys
-import argparse
-import collections
-
-csv.field_size_limit(5000000)
-
-# See http://stackoverflow.com/questions/14207708/ioerror-errno-32-broken-pipe-python
-from signal import signal, SIGPIPE, SIG_DFL
-signal(SIGPIPE, SIG_DFL)
-
-def processargs(args):
-    Args = collections.namedtuple('Args', ['fi', 'fo', 'mapfile', 'id_from',
-            'id_to', 'ku', 'p', 'conv_func', 'col'])
-
-    mapfile_dict = {
-                'h38' : '/mapfiles/h38.map',
-                'h37' : '/mapfiles/h37.map',
-                'm38' : '/mapfiles/m38.map',
-                'm37' : '/mapfiles/m37.map'
-                }
-    id_dict = {
-                'ens': 0,
-                'gb': 4,
-                'rs': 6,
-                'uc': 9,
-                'ensembl': 0,
-                'genbank': 4,
-                'refseq': 6,
-                'ucsc': 9,
-                }
-    format_dict = {
-                'gff3'     : convgxf,
-                'gtf'      : convgxf,
-                'vcf'      : convgxf,
-                'bed'      : convbed,
-                'bedgraph' : convbed,
-                'tsv'      : convtsv,
-                'sam'      : convsam,
-                'wig'      : convwig
-                }
-    ## check in and out files
-    if args.infile:
-        fi = open(args.infile, 'rt')
-    else:
-        fi = sys.stdin
-
-    if args.outfile:
-        fo = open(args.outfile, 'wt')
-    else:
-        fo = sys.stdout
-
-    ## check mapfile
-    if not args.mapfile:
-        print(
-        "ERROR: mapfile required. Can be an NCBI assembly_report file or "
-        "one of `h37`, `h38`, `m37` and `m38` for preloaded lists",
-        file = sys.stderr)
-        sys.exit()
-    elif args.mapfile in mapfile_dict:
-        mapfile = os.path.abspath(os.path.dirname(sys.argv[0])) + mapfile_dict[args.mapfile]
-    else:
-        mapfile = args.mapfile
-
-    ## check id_from and id_to
-    id_from = args.id_from.lower().strip(' ')
-    id_to = args.id_to.lower().strip(' ')
-    if id_from not in id_dict or id_to not in id_dict:
-        print(
-        "ERROR: id_from and id_to can only be one of the following:", ', '.join(id_dict),
-        file = sys.stderr)
-        sys.exit()
-    else:
-        id_from = id_dict[id_from]
-        id_to = id_dict[id_to]
-
-    if args.keep_unmapped:
-        ku = 'T'
-    else:
-        ku = 'F'
-
-    if args.primary:
-        p = 'T'
-    else:
-        p = 'F'
-
-    ## check format
-    format = args.format.lower().strip(' ')
-    if format not in format_dict:
-        print(
-            "ERROR: invalid format. Choose from:", ', '.join(format_dict),
-            file = sys.stderr)
-        sys.exit()
-    else:
-        conv_func = format_dict[format]
-
-    ## check column
-    col = 'NA' # default value in case column not provided
-    if args.format == 'tsv':
-        if not args.column:
-            print("ERROR: `col` required for `tsv` format", file = sys.stderr)
-            sys.exit()
-        else:
-            try:
-                col = int(args.column) - 1 # user provides col in 1-based number
-            except:
-                print("ERROR: `col` can only be an integer", file = sys.stderr)
-                sys.exit()
-
-    ## return args
-    return Args(fi, fo, mapfile, id_from, id_to, ku, p, conv_func, col)
-
-def chrnamedict(mapfile, id_from, id_to, p):
-    """
-    create a mapping dict that will be used swap seq-ids in the input file
-    ## params
-    mapfile : path to NCBI assembly_report.txt format file
-    id_from : column number of the seq-id format in input file
-    id_to   : column number of the seq-id format to convert to
-    ## returns
-    chrmap  : a dict object with id_from:id_to
-    """
-    chrmap = {}
-    with open(mapfile, 'r')  as f:
-        tbl = csv.reader(f, delimiter = '\t')
-        if p == 'F' and id_from == 0:
-            for line in tbl:
-                if not line[0].startswith('#') and line[id_to] != 'na':
-                    chrmap[line[id_from]] = line[id_to]
-                    # to deal with ens using gb seq-ids in their GTF
-                    chrmap[line[4]] = line[id_to]
-                    # to deal with ens prepending CHR to their patches, etc
-                    chrmap['CHR_'+line[id_from]] = line[id_to]
-        if p == 'F' and id_from != 0:
-            for line in tbl:
-                if not line[0].startswith('#') and line[id_to] != 'na':
-                        chrmap[line[id_from]] = line[id_to]
-        elif p == 'T':
-            for line in tbl:
-                if not line[0].startswith('#') and line[0] == '1':
-                    au = line[7]
-                    print(au, file=sys.stderr)
-                    chrmap[line[id_from]] = line[id_to]
-                    break
-            for line in tbl:
-                if not line[0].startswith('#') and line[7] == au:
-                    chrmap[line[id_from]] = line[id_to]
-    return chrmap
+import os 
 
 def convgxf(fi, fo, chrmap, ku):
     """
@@ -192,7 +44,7 @@ def convgxf(fi, fo, chrmap, ku):
                 um_lines = um_lines + 1
                 um_acc.add(line[0])
         elif line[0].startswith('##sequence-region'):
-            line = line[0].split(' ')
+            line = line[0].split()
             if line[1] in chrmap:
                 chrom = chrmap[line[1]]
                 newline = ' '.join([line[0]] + [chrom] + line[2:])
@@ -334,7 +186,10 @@ def convsam(fi, fo, chrmap, ku):
             all_lines = all_lines + 1
             if line[2] in chrmap:
                 chrom = chrmap[line[2]]
-                newline = line[:2] + [chrom] + line[3:]
+                pair_chrom = chrmap.get(line[6], line[6])
+                newline = line.copy()
+                newline[2] = chrom
+                newline[6] = pair_chrom
                 tblout.writerow(newline)
             elif ku == 'T':
                 um_lines = um_lines + 1
@@ -428,38 +283,3 @@ def convtsv(fi, fo, chrmap, ku, col):
         file = sys.stderr)
     fi.close()
     fo.close()
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description ="""This script parses input
-                file and converts the seq-id name from one kind to the other""")
-    parser.add_argument('-i', '--infile', help="input file")
-    parser.add_argument('-o', '--outfile', help="output file")
-    parser.add_argument('-m', '--mapfile',
-                        help = "NCBI style assembly_report file for mapping")
-    parser.add_argument('-if', '--id_from', default = 'uc', help = "seq-id \
-                        format in the input file; can be `ens`, `uc`, \
-                        `gb`, or `rs`; default is `uc`")
-    parser.add_argument('-it', '--id_to', default = 'rs', help = "seq-id \
-                        format in the output file; can be `ens`, `uc`, \
-                        `gb`, or `rs`; default is `rs`")
-    parser.add_argument('-ku', '--keep_unmapped', action='store_true',
-                        help = "keep lines that don't have seq-id matches")
-    parser.add_argument('-p', '--primary', action='store_true',
-                        help = "restrict to primary assembly only")
-    parser.add_argument('-f', '--format', default = 'gff3', help = "input \
-                        file format; can be `gff3`, `gtf`, `bedgraph` \
-                        `bed`, `sam`, `vcf`, `wig` or `tsv`; default is `gff3`")
-    parser.add_argument('-c', '--column', help = "column where the seq-id \
-                        is located; required for `tsv` format")
-
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(0)
-
-    args = parser.parse_args()
-    A = processargs(args)
-    chrmap = chrnamedict(A.mapfile, A.id_from, A.id_to, A.p)
-    if A.conv_func == convtsv:
-        A.conv_func(A.fi, A.fo, chrmap, A.ku, A.col)
-    else:
-        A.conv_func(A.fi, A.fo, chrmap, A.ku)
