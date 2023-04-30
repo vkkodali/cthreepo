@@ -33,6 +33,7 @@ def processargs(args):
                 'genbank': 4,
                 'refseq': 6,
                 'ucsc': 9,
+                'any': 99,
                 }
     format_dict = {
                 'gff3'     : convgxf,
@@ -100,39 +101,57 @@ def create_maptbl(mapfile):
     return maptbl
 
 def chrnamedict(maptbl, id_from, id_to, p):
-    """
-    create a mapping dict that will be used swap seq-ids in the input file
-    ## params
-    mapfile : path to NCBI assembly_report.txt format file
-    id_from : column number of the seq-id format in input file
-    id_to   : column number of the seq-id format to convert to
-    ## returns
-    chrmap  : a dict object with id_from:id_to
-    """
     chrmap = {}
-    tbl = csv.reader(maptbl, delimiter = '\t')
-    if p == 'F' and id_from == 0:
-        for line in tbl:
-            if not line[0].startswith('#') and line[id_to] != 'na':
-                chrmap[line[id_from]] = line[id_to]
-                # to deal with ens using gb seq-ids in their GTF
-                chrmap[line[4]] = line[id_to]
-                # to deal with ens prepending CHR to their patches, etc
-                chrmap['CHR_'+line[id_from]] = line[id_to]
-    if p == 'F' and id_from != 0:
-        for line in tbl:
-            if not line[0].startswith('#') and line[id_to] != 'na':
-                    chrmap[line[id_from]] = line[id_to]
-    elif p == 'T':
-        for line in tbl:
-            if not line[0].startswith('#') and line[0] == '1':
-                au = line[7]
-                print(au, file=sys.stderr)
-                chrmap[line[id_from]] = line[id_to]
-                break
-        for line in tbl:
-            if not line[0].startswith('#') and line[7] == au:
-                chrmap[line[id_from]] = line[id_to]
+    ## add all seq-ids to the dict
+    ## maptbl is just a list but csv reader still works
+    tbl = csv.reader(maptbl, delimiter='\t')
+    for line in tbl:
+        if line[0].startswith('#'): continue
+        if line[id_to] == 'na': continue
+        if id_from == 0:
+            chrmap[line[id_from]] = line[id_to]
+            chrmap[line[4]] = line[id_to] # to deal with ens using gb seq-ids in their GTF
+            if 'CHR' in line[id_from]:
+                chrmap['CHR_'+line[id_from]] = line[id_to] # to deal with ens prepending CHR to their patches, etc
+            if line[id_from] == 'MT':
+                chrmap['chrMT'] = line[id_to] # to deal with chrMT corner case
+        if id_from in [4, 6, 9]:
+            chrmap[line[id_from]] = line[id_to]
+        if id_from == 99:
+            cols = [0, 4, 6, 9]
+            cols.remove(id_to)
+            for col in cols:
+                chrmap[line[col]] = line[id_to]
+                if 'CHR' in line[col]:
+                    chrmap['CHR_'+line[col]] = line[id_to] # to deal with ens prepending CHR to their patches, etc
+                if line[col] == 'MT':
+                    chrmap['chrMT'] = line[id_to] # to deal with chrMT corner case
+
+    chrmap.pop('na', None)
+
+    ## if -p option is set, remove non-primary accs from dict
+    if p == 'T':
+        for line in maptbl:
+            if line.startswith('#'): continue 
+            line = line.split('\t')
+            au = line[7]
+            break
+
+        priassm_accs = set()
+        for line in maptbl:
+            if line.startswith('#'): continue
+            line = line.split('\t')
+            if line[7] == au:
+                for i in [0, 4, 6, 9]:
+                    priassm_accs.add(line[i])
+        priassm_accs.discard('na')
+
+        print(f'Restricting translation to "{au}" only ({len(priassm_accs)} seq-ids)', 
+              file=sys.stderr)            
+
+        for k in set(chrmap) - priassm_accs:
+            del chrmap[k]
+
     return chrmap
 
 def main():
@@ -145,11 +164,11 @@ def main():
                         help = "NCBI style assembly_report file for mapping")
     mapgroup.add_argument('-a', '--accn',
                         help = "NCBI Assembly Accession with version")
-    parser.add_argument('-if', '--id_from', default = 'uc',
-                        choices = ['uc', 'rs', 'gb', 'ens'],
+    parser.add_argument('-if', '--id_from', default = 'any',
+                        choices = ['any', 'uc', 'rs', 'gb', 'ens'],
                         type = lambda s: s.lower().strip(),
                         help = "seq-id format in the input file; can be \
-                            `ens`, `uc`, `gb`, or `rs`; default is `uc`")
+                            `any`, `ens`, `uc`, `gb`, or `rs`; default is `any`")
     parser.add_argument('-it', '--id_to', default = 'rs', 
                         choices = ['uc', 'rs', 'gb', 'ens'],
                         type = lambda s: s.lower().strip(),
