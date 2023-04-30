@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='cthreepo',
-    version='0.1.2',
+    version='0.1.3',
     author='Vamsi Kodali',
     author_email='vkkodali@gmail.com',
     description='A python tool to interconvert seq-ids in gff3, gtf, bed and other files.',
