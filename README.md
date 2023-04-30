@@ -1,28 +1,43 @@
 # cthreepo
+[![PyPI version](https://badge.fury.io/py/cthreepo.svg)](https://badge.fury.io/py/cthreepo)
+[![Conda](https://img.shields.io/conda/dn/bioconda/cthreepo?label=bioconda-install&style=flat)](https://anaconda.org/bioconda/cthreepo)
+
 A python script to interconvert seq-ids in gff3, gtf, bed and other files.
+
 ---
 ## Quick start for the impatient
-1. Clone the repository
-2. Run the following to install: 
+1. Install using conda 
 ```
-python3 setup.py install
+conda install -c bioconda cthreepo 
 ```
-3. Execute as follows:
+2. Execute as follows:
 ```
 ## convert seq-ids in <input.gff3> from refseq format (NC_000001.11)
 ## to UCSC format (chr1) using the Human GRCh38 mapping dictionary
 cthreepo -i <input.gff3> -if rs -it uc -f gff3 -m h38 -o <output.gff3>
 ```
 ---
+
 ## Introduction
 NCBI RefSeq, UCSC and Ensembl use different identifiers for chromosomes in annotation and other files such as GFF3, GTF, etc. Users interested in using a mix of files downloaded from different sources and use them in a single pipeline may end up with seq-id mismatch related errors. This script converts seq-ids from one style to the other in order to make the files compatible with each other.
 
 ## Installation and Usage
-Python3 is required for this script to work. With that requirement satisfied, download/clone the repository, install and run the script `cthreepo.py` as shown below.
+Python3 is required for this script to work. With that requirement satisfied, you can install as shown below:
+### Install using conda 
 ```
-## installation
+conda install -c bioconda cthreepo 
+```
+### Install using pip
+```
+pip install cthreepo
+```
+### Install from this repository
+First, download/clone the repository. Then run: 
+```
 python3 setup.py install
-
+```
+### Usage
+```
 ## help
 cthreepo --help 
 
